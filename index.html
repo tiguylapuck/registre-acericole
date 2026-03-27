@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Registre Acéricole</title>
+    <style>
+        :root { --primary: #8b0000; --bg: #f4f4f9; --text: #333; }
+        body { font-family: sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h1 { color: var(--primary); font-size: 1.5rem; margin-top: 0; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9rem; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 1.1rem; box-sizing: border-box; }
+        button { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; }
+        button:active { transform: scale(0.98); }
+        .result-box { background: #e8f5e9; padding: 10px; border-radius: 8px; margin-top: 10px; font-weight: bold; color: #2e7d32; }
+        .history-item { border-left: 5px solid var(--primary); padding: 10px; background: #eee; margin-bottom: 10px; border-radius: 4px; font-size: 0.85rem; }
+        .footer { font-size: 0.7rem; text-align: center; color: #777; margin-top: 30px; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h1>🍁 Nouvelle Récolte</h1>
+        
+        <div class="input-group">
+            <label>Volume d'eau brute (Gallons)</label>
+            <input type="number" id="volEau" placeholder="Ex: 500" oninput="calculerSirop()">
+        </div>
+
+        <div class="input-group">
+            <label>Degré Brix de l'eau (°Bx)</label>
+            <input type="number" id="brixEau" step="0.1" placeholder="Ex: 2.1" oninput="calculerSirop()">
+        </div>
+
+        <div class="input-group">
+            <label>Niveau de vide (-po Hg)</label>
+            <input type="number" id="vacuum" placeholder="Ex: 25">
+        </div>
+
+        <div id="estimeSirop" class="result-box">Sirop estimé : 0.0 gal</div>
+        
+        <button onclick="sauvegarder()">Enregistrer la coulée</button>
+    </div>
+
+    <div class="card">
+        <h1>📊 Historique (Local)</h1>
+        <div id="listeHistorique">Aucune donnée enregistrée.</div>
+        <button style="background: #666; margin-top: 15px; padding: 10px;" onclick="exporterCSV()">Exporter en CSV</button>
+    </div>
+
+    <div class="footer">
+        Protégé par Licence AGPL v3<br>
+        Inspiré par le modèle Nabu Casa - [Votre Projet]
+    </div>
+
+<script>
+    // Logique de calcul (Règle de 86)
+    function calculerSirop() {
+        const vol = document.getElementById('volEau').value;
+        const brix = document.getElementById('brixEau').value;
+        const resultat = document.getElementById('estimeSirop');
+        
+        if(vol > 0 && brix > 0) {
+            const sirop = (vol * brix) / 86;
+            resultat.innerText = `Sirop estimé : ${sirop.toFixed(2)} gal`;
+        }
+    }
+
+    // Sauvegarde dans le téléphone
+    function sauvegarder() {
+        const donnee = {
+            date: new Date().toLocaleString('fr-CA'),
+            eau: document.getElementById('volEau').value,
+            brix: document.getElementById('brixEau').value,
+            vac: document.getElementById('vacuum').value
+        };
+
+        if(!donnee.eau || !donnee.brix) return alert("Veuillez remplir au moins le volume et le Brix.");
+
+        let historique = JSON.parse(localStorage.getItem('registre_sirop') || "[]");
+        historique.unshift(donnee); // Ajouter au début
+        localStorage.setItem('registre_sirop', JSON.stringify(historique));
+        
+        alert("Enregistré avec succès !");
+        afficherHistorique();
+        
+        // Reset des champs
+        document.getElementById('volEau').value = '';
+        document.getElementById('brixEau').value = '';
+    }
+
+    // Affichage de la liste
+    function afficherHistorique() {
+        const liste = document.getElementById('listeHistorique');
+        let historique = JSON.parse(localStorage.getItem('registre_sirop') || "[]");
+        
+        if(historique.length === 0) return;
+        
+        liste.innerHTML = historique.map(item => `
+            <div class="history-item">
+                <strong>${item.date}</strong><br>
+                Eau: ${item.eau} gal | Brix: ${item.brix}% | Vide: -${item.vac} poHg
+            </div>
+        `).join('');
+    }
+
+    // Exportation pour Excel
+    function exporterCSV() {
+        let historique = JSON.parse(localStorage.getItem('registre_sirop') || "[]");
+        let csvContent = "data:text/csv;charset=utf-8,Date,Eau,Brix,Vacuum\n" 
+            + historique.map(e => `${e.date},${e.eau},${e.brix},${e.vac}`).join("\n");
+        
+        window.open(encodeURI(csvContent));
+    }
+
+    // Charger l'historique au démarrage
+    afficherHistorique();
+</script>
+
+</body>
+</html>
