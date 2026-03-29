@@ -1,123 +1,816 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Registre Acéricole</title>
-    <style>
-        :root { --primary: #8b0000; --bg: #f4f4f9; --text: #333; }
-        body { font-family: sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        h1 { color: var(--primary); font-size: 1.5rem; margin-top: 0; }
-        .input-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9rem; }
-        input, select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 1.1rem; box-sizing: border-box; }
-        button { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; }
-        button:active { transform: scale(0.98); }
-        .result-box { background: #e8f5e9; padding: 10px; border-radius: 8px; margin-top: 10px; font-weight: bold; color: #2e7d32; }
-        .history-item { border-left: 5px solid var(--primary); padding: 10px; background: #eee; margin-bottom: 10px; border-radius: 4px; font-size: 0.85rem; }
-        .footer { font-size: 0.7rem; text-align: center; color: #777; margin-top: 30px; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#1a0a00">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Registre Osmose — Érablière</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --brun:#1a0a00; --brun2:#2e1200; --brun3:#3d1f00;
+  --amber:#c87d2f; --amber2:#e8a24a; --or:#f5c842;
+  --creme:#fdf3e3; --blanc:#fffdf8; --gris:#8a7a6a;
+  --vert:#4a9e4a; --rouge:#c0392b; --jaune:#e8c93a;
+  --bleu:#3a7bd5;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Source Sans 3',sans-serif;background:var(--brun);color:var(--creme);min-height:100vh;font-size:15px}
+
+header{background:linear-gradient(135deg,var(--brun),var(--brun2));border-bottom:2px solid var(--amber);padding:12px 16px;position:sticky;top:0;z-index:200}
+.hrow{display:flex;align-items:center;gap:10px}
+.hrow h1{font-family:'Playfair Display',serif;font-size:17px;color:var(--amber2);flex:1;line-height:1.2}
+.hrow p{font-size:10px;color:var(--gris);text-transform:uppercase;letter-spacing:.06em}
+.badge{background:var(--amber);color:var(--brun);font-weight:700;font-size:11px;padding:3px 10px;border-radius:20px}
+
+/* CLOUD BAR */
+.cloud-bar{background:var(--brun2);border-bottom:1px solid rgba(200,125,47,.2);padding:8px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cloud-status{display:flex;align-items:center;gap:6px;flex:1;min-width:0}
+.cloud-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;transition:background .3s}
+.dot-ok{background:#6ec96e}
+.dot-off{background:var(--gris)}
+.dot-sync{background:var(--jaune);animation:pulse 1s infinite}
+.dot-err{background:#e05555}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.cloud-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--gris);font-size:11px}
+.sync-time{font-size:10px;color:var(--gris);padding:2px 14px 4px;background:var(--brun2)}
+
+.tabs{display:flex;background:var(--brun2);border-bottom:1px solid rgba(200,125,47,.3)}
+.tab{flex:1;padding:11px 4px;text-align:center;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--gris);cursor:pointer;border-bottom:3px solid transparent;transition:.2s}
+.tab.on{color:var(--amber2);border-bottom-color:var(--amber);background:rgba(200,125,47,.1)}
+
+.page{padding:14px;max-width:640px;margin:0 auto}
+.hidden{display:none!important}
+
+.card{background:rgba(255,253,248,.05);border:1px solid rgba(200,125,47,.22);border-radius:12px;padding:16px;margin-bottom:14px}
+.card h3{font-family:'Playfair Display',serif;font-size:14px;color:var(--amber);margin-bottom:13px;display:flex;align-items:center;gap:7px}
+
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:11px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-bottom:11px}
+.row1{margin-bottom:11px}
+.field label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--amber2);margin-bottom:4px;font-weight:600}
+.field input,.field select,.field textarea{width:100%;background:rgba(255,253,248,.07);border:1px solid rgba(200,125,47,.3);border-radius:7px;color:var(--blanc);font-size:14px;font-family:'Source Sans 3',sans-serif;padding:8px 10px;-webkit-appearance:none;transition:border .2s}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--amber);background:rgba(200,125,47,.1)}
+.field input[type=number]{text-align:right}
+.field select option{background:var(--brun2);color:var(--creme)}
+
+.comp{background:rgba(245,200,66,.07);border:1px solid rgba(245,200,66,.25);border-radius:7px;padding:8px 10px;font-size:16px;font-weight:700;color:var(--or);text-align:right;min-height:37px}
+.comp.good{color:#6ec96e;border-color:rgba(110,201,110,.35);background:rgba(110,201,110,.07)}
+.comp.warn{color:var(--jaune);border-color:rgba(232,201,58,.35);background:rgba(232,201,58,.07)}
+.comp.bad{color:#e05555;border-color:rgba(224,85,85,.35);background:rgba(224,85,85,.07)}
+
+.mem-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-bottom:11px}
+.mem-card{background:rgba(255,253,248,.04);border:1px solid rgba(200,125,47,.18);border-radius:9px;padding:11px}
+.mem-title{font-size:11px;font-weight:700;color:var(--amber2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.mem-eff{font-size:13px;font-weight:700;padding:2px 8px;border-radius:12px}
+.eff-good{background:rgba(110,201,110,.15);color:#6ec96e}
+.eff-warn{background:rgba(232,201,58,.15);color:var(--jaune)}
+.eff-bad{background:rgba(224,85,85,.15);color:#e05555}
+
+.btn-main{width:100%;background:linear-gradient(135deg,var(--amber),var(--amber2));color:var(--brun);font-weight:700;font-size:14px;letter-spacing:.05em;text-transform:uppercase;padding:13px;border:none;border-radius:9px;cursor:pointer;font-family:'Source Sans 3',sans-serif;margin-top:4px;transition:opacity .2s}
+.btn-main:active{opacity:.82}
+.btn-main:disabled{opacity:.5;cursor:not-allowed}
+.btn-sm{background:transparent;border:1px solid var(--amber);color:var(--amber2);font-size:12px;font-weight:600;padding:7px 14px;border-radius:7px;cursor:pointer;font-family:'Source Sans 3',sans-serif;transition:background .2s}
+.btn-sm:hover{background:rgba(200,125,47,.15)}
+.btns-row{display:flex;gap:8px;flex-wrap:wrap}
+
+.stitle{font-family:'Playfair Display',serif;font-size:20px;color:var(--amber2);margin-bottom:3px}
+.ssub{font-size:12px;color:var(--gris);margin-bottom:16px}
+
+.pep-panel{background:rgba(245,200,66,.06);border:1px solid rgba(245,200,66,.2);border-radius:10px;padding:14px;margin-bottom:14px}
+.pep-panel h4{font-family:'Playfair Display',serif;font-size:14px;color:var(--or);margin-bottom:10px}
+.pep-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.pep-item{text-align:center}
+.pep-label{font-size:10px;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
+.pep-val{font-size:17px;font-weight:700;color:var(--or)}
+.pep-sub{font-size:10px;color:var(--gris)}
+
+.hcard{background:rgba(255,253,248,.04);border:1px solid rgba(200,125,47,.18);border-radius:11px;padding:13px 14px;margin-bottom:10px}
+.hcard-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.hdate{font-size:13px;color:var(--amber2);font-weight:600}
+.hop{font-size:11px;color:var(--gris);margin-top:2px}
+.hdel{background:none;border:none;color:var(--gris);cursor:pointer;font-size:17px;padding:0 0 0 8px}
+.hdel:hover{color:#e05555}
+.hstats{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:9px}
+.hstat{background:rgba(255,253,248,.04);border-radius:7px;padding:7px 9px}
+.hstat-l{font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--gris);margin-bottom:2px}
+.hstat-v{font-size:15px;font-weight:700;color:var(--blanc)}
+.hstat-u{font-size:10px;color:var(--gris);font-weight:400}
+.hmems{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
+.hmem{background:rgba(255,253,248,.03);border-radius:6px;padding:6px 8px;text-align:center}
+.hmem-l{font-size:9px;color:var(--gris);text-transform:uppercase;margin-bottom:2px}
+.hmem-v{font-size:13px;font-weight:700}
+.hnote{font-size:12px;color:var(--gris);font-style:italic;margin-top:8px;padding-top:8px;border-top:1px solid rgba(200,125,47,.1)}
+
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:16px}
+.sc{background:rgba(255,253,248,.05);border:1px solid rgba(200,125,47,.18);border-radius:11px;padding:14px;text-align:center}
+.sc-big{font-family:'Playfair Display',serif;font-size:28px;color:var(--or);line-height:1;margin-bottom:3px}
+.sc-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--gris)}
+
+.eff-bar{height:8px;border-radius:4px;background:rgba(255,255,255,.1);margin-top:5px;overflow:hidden}
+.eff-fill{height:100%;border-radius:4px;transition:width .5s}
+
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(200,125,47,.3);border-top-color:var(--amber);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);color:#fff;padding:10px 22px;border-radius:28px;font-weight:600;font-size:13px;z-index:999;transition:transform .3s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;max-width:90vw;text-align:center}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.t-ok{background:#4a9e4a}
+.t-err{background:#c0392b}
+.t-info{background:var(--bleu)}
+
+.fc-info{font-size:11px;color:var(--gris);margin-top:4px;text-align:right}
+.saison-select{background:rgba(255,253,248,.07);border:1px solid rgba(200,125,47,.3);border-radius:7px;color:var(--blanc);font-size:12px;padding:4px 8px;font-family:'Source Sans 3',sans-serif;-webkit-appearance:none}
+</style>
 </head>
 <body>
 
-    <div class="card">
-        <h1>🍁 Nouvelle Récolte</h1>
-        
-        <div class="input-group">
-            <label>Volume d'eau brute (Gallons)</label>
-            <input type="number" id="volEau" placeholder="Ex: 500" oninput="calculerSirop()">
-        </div>
-
-        <div class="input-group">
-            <label>Degré Brix de l'eau (°Bx)</label>
-            <input type="number" id="brixEau" step="0.1" placeholder="Ex: 2.1" oninput="calculerSirop()">
-        </div>
-
-        <div class="input-group">
-            <label>Niveau de vide (-po Hg)</label>
-            <input type="number" id="vacuum" placeholder="Ex: 25">
-        </div>
-
-        <div id="estimeSirop" class="result-box">Sirop estimé : 0.0 gal</div>
-        
-        <button onclick="sauvegarder()">Enregistrer la coulée</button>
+<header>
+  <div class="hrow">
+    <div style="font-size:26px">🍁</div>
+    <div style="flex:1">
+      <h1>Registre Osmose — PEP</h1>
+      <p>Performance des membranes</p>
     </div>
+    <select class="saison-select" id="saison-select" onchange="changeSaison(this.value)">
+      <option value="2026">2026</option>
+      <option value="2025">2025</option>
+      <option value="2027">2027</option>
+    </select>
+  </div>
+</header>
 
-    <div class="card">
-        <h1>📊 Historique (Local)</h1>
-        <div id="listeHistorique">Aucune donnée enregistrée.</div>
-        <button style="background: #666; margin-top: 15px; padding: 10px;" onclick="exporterCSV()">Exporter en CSV</button>
-    </div>
+<!-- CLOUD BAR -->
+<div class="cloud-bar">
+  <div class="cloud-status">
+    <div class="cloud-dot dot-sync" id="cloud-dot"></div>
+    <span class="cloud-label" id="cloud-label">Connexion à Supabase...</span>
+  </div>
+</div>
+<div class="sync-time" id="sync-time"></div>
 
-    <div class="footer">
-        Protégé par Licence AGPL v3<br>
-        Inspiré par le modèle Nabu Casa - [Votre Projet]
+<div class="tabs">
+  <div class="tab on"  onclick="goTab('init')">⚙️ Initial</div>
+  <div class="tab"    onclick="goTab('saisie')">✏️ Saisie</div>
+  <div class="tab"    onclick="goTab('hist')">📋 Registre</div>
+  <div class="tab"    onclick="goTab('bilan')">📊 Bilan</div>
+</div>
+
+<!-- ══════ INIT ══════ -->
+<div id="tab-init" class="page">
+  <p class="stitle">Variables initiales</p>
+  <p class="ssub">Mesures effectuées en début de saison (PEP de référence)</p>
+
+  <div class="card">
+    <h3>🔧 Équipement</h3>
+    <div class="row2">
+      <div class="field"><label>Marque membranes</label><input id="i-marque" placeholder="ex: H2O"></div>
+      <div class="field"><label>Nb de membranes</label><input type="number" id="i-nb" min="1" max="8" value="4"></div>
     </div>
+    <div class="row2">
+      <div class="field"><label>Modèle séparateur</label><input id="i-modele" placeholder="ex: Econox 1200"></div>
+      <div class="field"><label>Année d'achat</label><input type="number" id="i-annee" value="2025"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Volume mort — VM (L)</label><input type="number" id="i-vm" value="168"></div>
+      <div class="field"><label>Volume mort résiduel — VMR (L)</label><input type="number" id="i-vmr" value="60"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>📅 Date du PEP initial</h3>
+    <div class="row2">
+      <div class="field"><label>Date</label><input type="date" id="i-date-pep"></div>
+      <div class="field"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>💧 PEP Initial — 150 psi</h3>
+    <div class="row3">
+      <div class="field"><label>Pression (psi)</label><input type="number" id="i-p150" value="150"></div>
+      <div class="field"><label>Débit filtrat (l/min)</label><input type="number" id="i-debit150" step="0.5" placeholder="ex: 115" oninput="calcPEPinit()"></div>
+      <div class="field"><label>T° filtrat (°C)</label><input type="number" id="i-temp150" value="9" min="0" max="25" oninput="calcPEPinit()"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Facteur correction (Fc)</label><div class="comp" id="ci-fc150">—</div><div class="fc-info" id="ci-fc150-lbl"></div></div>
+      <div class="field"><label>PEP initial 150 psi</label><div class="comp" id="ci-pep150">—</div></div>
+    </div>
+    <p style="font-size:11px;color:var(--gris)">PEP individuel par membrane :</p>
+    <div id="init-mems-150" class="mem-grid" style="margin-top:8px"></div>
+  </div>
+
+  <div class="card">
+    <h3>💧 PEP Initial — 175 psi</h3>
+    <div class="row3">
+      <div class="field"><label>Pression (psi)</label><input type="number" id="i-p175" value="175"></div>
+      <div class="field"><label>Débit filtrat (l/min)</label><input type="number" id="i-debit175" step="0.5" placeholder="ex: 125" oninput="calcPEPinit()"></div>
+      <div class="field"><label>T° filtrat (°C)</label><input type="number" id="i-temp175" value="9" min="0" max="25" oninput="calcPEPinit()"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Facteur correction (Fc)</label><div class="comp" id="ci-fc175">—</div></div>
+      <div class="field"><label>PEP initial 175 psi</label><div class="comp" id="ci-pep175">—</div></div>
+    </div>
+    <p style="font-size:11px;color:var(--gris)">PEP individuel par membrane :</p>
+    <div id="init-mems-175" class="mem-grid" style="margin-top:8px"></div>
+  </div>
+
+  <div class="card">
+    <h3>🚿 Volumes de rinçage calculés</h3>
+    <div class="row2" id="vol-rincage"></div>
+  </div>
+
+  <button class="btn-main" id="btn-save-init" onclick="saveInit()">💾 Sauvegarder les variables initiales</button>
+  <div style="height:24px"></div>
+</div>
+
+<!-- ══════ SAISIE ══════ -->
+<div id="tab-saisie" class="page hidden">
+  <div id="pep-ref-banner"></div>
+  <p class="stitle">Nouvelle entrée</p>
+  <p class="ssub">Mesure de performance journalière</p>
+
+  <div class="card">
+    <h3>📅 Informations générales</h3>
+    <div class="row2">
+      <div class="field"><label>Date</label><input type="date" id="s-date"></div>
+      <div class="field"><label>Heures d'opération</label><input type="number" id="s-heures" step="0.5" placeholder="ex: 8"></div>
+    </div>
+    <div class="row1">
+      <div class="field"><label>Opération précédente</label>
+        <select id="s-op">
+          <option value="">— Sélectionner —</option>
+          <option>Concentration</option>
+          <option>Désucrage/rinçage long</option>
+          <option>Désucrage/rinçage court</option>
+          <option>Rinçage long</option>
+          <option>Rinçage court après lavage chaud</option>
+          <option>Lavage chaud</option>
+          <option>Lavage court après savon</option>
+          <option>Lavage acide</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>🌐 Mesure Globale (osmoseur)</h3>
+    <div class="row3">
+      <div class="field"><label>Débit filtrat (l/min)</label><input type="number" id="s-g-debit150" step="0.5" placeholder="150 psi" oninput="calcSaisie()"></div>
+      <div class="field"><label>T° filtrat (°C)</label><input type="number" id="s-g-temp150" step="1" placeholder="°C" oninput="calcSaisie()"></div>
+      <div class="field"><label>PEP actuelle</label><div class="comp" id="sc-g-pep150">—</div></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Efficacité 150 psi</label><div class="comp" id="sc-g-eff150">—</div></div>
+      <div class="field"><label>Débit 175 psi (l/min)</label><input type="number" id="s-g-debit175" step="0.5" placeholder="175 psi" oninput="calcSaisie()"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>T° 175 psi (°C)</label><input type="number" id="s-g-temp175" step="1" placeholder="°C" oninput="calcSaisie()"></div>
+      <div class="field"><label>Efficacité 175 psi</label><div class="comp" id="sc-g-eff175">—</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>🔬 Membranes individuelles</h3>
+    <div id="mem-saisie-container"></div>
+  </div>
+
+  <div class="card">
+    <h3>🧹 Lavage / rinçage (si effectué)</h3>
+    <div class="row2">
+      <div class="field"><label>Type de lavage</label>
+        <select id="s-lavage">
+          <option value="">Aucun</option>
+          <option>Rinçage court</option>
+          <option>Rinçage long</option>
+          <option>Lavage acide</option>
+          <option>Lavage soude</option>
+          <option>Lavage complet</option>
+        </select>
+      </div>
+      <div class="field"><label>Conc. solution (pH ou ml/l)</label><input type="text" id="s-lav-conc" placeholder="ex: 4 tasses"></div>
+    </div>
+    <div class="row3">
+      <div class="field"><label>T° solution (°C)</label><input type="number" id="s-lav-temp" step="1"></div>
+      <div class="field"><label>Durée (min)</label><input type="number" id="s-lav-duree" step="1"></div>
+      <div class="field"><label>Volume eau (gal)</label><input type="number" id="s-lav-vol" step="1"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>📝 Commentaires</h3>
+    <div class="field"><textarea id="s-notes" rows="3" placeholder="Observations, anomalies, membrane #X suspecte..."></textarea></div>
+  </div>
+
+  <button class="btn-main" id="btn-save-entry" onclick="saveEntry()">💾 Enregistrer cette entrée</button>
+  <div style="height:24px"></div>
+</div>
+
+<!-- ══════ REGISTRE ══════ -->
+<div id="tab-hist" class="page hidden">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px">
+    <div><p class="stitle">Registre</p><p class="ssub">Historique de la saison</p></div>
+    <div class="btns-row">
+      <button class="btn-sm" onclick="exportXLSX()">📊 Excel</button>
+      <button class="btn-sm" onclick="exportCSV()">📄 CSV</button>
+    </div>
+  </div>
+  <div id="hist-list"></div>
+</div>
+
+<!-- ══════ BILAN ══════ -->
+<div id="tab-bilan" class="page hidden">
+  <p class="stitle">Bilan de saison</p>
+  <p class="ssub" id="bilan-period"></p>
+  <div class="sg" id="bilan-stats"></div>
+  <div id="bilan-mems"></div>
+</div>
+
+<div class="toast" id="toast"></div>
 
 <script>
-    // Logique de calcul (Règle de 86)
-    function calculerSirop() {
-        const vol = document.getElementById('volEau').value;
-        const brix = document.getElementById('brixEau').value;
-        const resultat = document.getElementById('estimeSirop');
-        
-        if(vol > 0 && brix > 0) {
-            const sirop = (vol * brix) / 86;
-            resultat.innerText = `Sirop estimé : ${sirop.toFixed(2)} gal`;
-        }
+// ══════════════════════════════════════════════════════
+// SUPABASE
+// ══════════════════════════════════════════════════════
+const SUPABASE_URL = 'https://yvorqymjdgxbqncrcqls.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_7zjg8ddkCxAmZTykNN9xUA_K5D-Nugl';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ══ État app ══════════════════════════════════════════
+let cfg  = {};
+let data = [];
+let saisonActive = new Date().getFullYear();
+let configId = null;   // ID de la ligne config dans Supabase
+
+// ══ Grille de correction ══════════════════════════════
+const FC={0:.672,1:.695,2:.719,3:.742,4:.766,5:.79,6:.816,7:.842,8:.866,9:.893,10:.919,11:.946,12:.973,13:1,14:1.028,15:1.055,16:1.084,17:1.112,18:1.142,19:1.17,20:1.2,21:1.229,22:1.259,23:1.289,24:1.319,25:1.35};
+const getFc=t=>{const r=Math.round(parseFloat(t));return isNaN(r)?null:FC[Math.max(0,Math.min(25,r))]??null;};
+const calcPEP=(d,t)=>{const fc=getFc(t);return(fc&&d)?d/fc:null;};
+const effCls=e=>e===null?'':e>=95?'good':e>=80?'warn':'bad';
+const memEffCls=e=>e===null?'':e>=95?'eff-good':e>=80?'eff-warn':'eff-bad';
+const nbMem=()=>parseInt(cfg.nbMem||document.getElementById('i-nb').value||4);
+
+// ══ SUPABASE — Chargement ═════════════════════════════
+async function initApp() {
+  setStatus('sync','Connexion à Supabase...');
+  try {
+    await loadConfig();
+    await loadEntrees();
+    setStatus('ok','Synchronisé avec Supabase ☁️');
+    setSyncTime('Chargé le '+new Date().toLocaleString('fr-CA'));
+  } catch(e) {
+    setStatus('err','Erreur de connexion : '+e.message);
+    toast('Erreur Supabase : '+e.message,'err');
+  }
+}
+
+async function loadConfig() {
+  const { data: rows, error } = await db
+    .from('config_initiale')
+    .select('*')
+    .eq('saison', saisonActive)
+    .order('id', { ascending: false })
+    .limit(1);
+  if(error) throw error;
+  if(rows && rows.length > 0) {
+    const r = rows[0];
+    configId = r.id;
+    cfg = {
+      marque: r.marque, modele: r.modele, nbMem: r.nb_membranes,
+      annee: r.annee_achat, vm: r.vm, vmr: r.vmr, datePEP: r.date_pep,
+      pression150: r.pression_150, debit150: r.debit_150, temp150: r.temp_150,
+      fc150: r.fc_150, pep150: r.pep_150, mems150: r.mems_150||{},
+      pression175: r.pression_175, debit175: r.debit_175, temp175: r.temp_175,
+      fc175: r.fc_175, pep175: r.pep_175, mems175: r.mems_175||{},
+    };
+    loadInitForm();
+  }
+}
+
+async function loadEntrees() {
+  const { data: rows, error } = await db
+    .from('entrees_osmose')
+    .select('*')
+    .eq('saison', saisonActive)
+    .order('date_entree', { ascending: false });
+  if(error) throw error;
+  data = (rows||[]).map(r => ({
+    id: r.id, date: r.date_entree, heures: r.heures, op: r.operation,
+    global: r.global||{}, mems: r.mems||{},
+    lavage: r.lavage, lavConc: r.lav_conc, lavTemp: r.lav_temp,
+    lavDuree: r.lav_duree, lavVol: r.lav_vol, notes: r.notes
+  }));
+}
+
+// ══ SUPABASE — Sauvegarde config ══════════════════════
+async function saveInitToDB() {
+  const payload = {
+    saison: saisonActive,
+    marque: cfg.marque, modele: cfg.modele, nb_membranes: cfg.nbMem,
+    annee_achat: cfg.annee, vm: cfg.vm, vmr: cfg.vmr, date_pep: cfg.datePEP||null,
+    pression_150: cfg.pression150, debit_150: cfg.debit150, temp_150: cfg.temp150,
+    fc_150: cfg.fc150, pep_150: cfg.pep150, mems_150: cfg.mems150,
+    pression_175: cfg.pression175, debit_175: cfg.debit175, temp_175: cfg.temp175,
+    fc_175: cfg.fc175, pep_175: cfg.pep175, mems_175: cfg.mems175,
+    mis_a_jour_le: new Date().toISOString()
+  };
+  if(configId) {
+    const { error } = await db.from('config_initiale').update(payload).eq('id', configId);
+    if(error) throw error;
+  } else {
+    const { data: row, error } = await db.from('config_initiale').insert(payload).select().single();
+    if(error) throw error;
+    configId = row.id;
+  }
+}
+
+// ══ SUPABASE — Sauvegarde entrée ══════════════════════
+async function saveEntreeToDB(entry) {
+  const payload = {
+    saison: saisonActive,
+    date_entree: entry.date, heures: entry.heures, operation: entry.op,
+    global: entry.global, mems: entry.mems,
+    lavage: entry.lavage||null, lav_conc: entry.lavConc||null,
+    lav_temp: entry.lavTemp||null, lav_duree: entry.lavDuree||null,
+    lav_vol: entry.lavVol||null, notes: entry.notes||null
+  };
+  const { data: row, error } = await db.from('entrees_osmose').insert(payload).select().single();
+  if(error) throw error;
+  return row.id;
+}
+
+// ══ SUPABASE — Suppression ════════════════════════════
+async function deleteEntreeFromDB(id) {
+  const { error } = await db.from('entrees_osmose').delete().eq('id', id);
+  if(error) throw error;
+}
+
+// ══ Indicateur cloud ══════════════════════════════════
+function setStatus(state, label) {
+  document.getElementById('cloud-dot').className = 'cloud-dot dot-'+state;
+  document.getElementById('cloud-label').textContent = label;
+}
+function setSyncTime(txt) {
+  document.getElementById('sync-time').textContent = txt;
+}
+
+// ══ INIT FORM ═════════════════════════════════════════
+function renderInitMemInputs() {
+  const nb=parseInt(document.getElementById('i-nb').value)||4;
+  ['150','175'].forEach(psi=>{
+    const cont=document.getElementById('init-mems-'+psi);
+    cont.innerHTML='';
+    for(let i=1;i<=nb;i++){
+      const div=document.createElement('div');
+      div.className='mem-card';
+      div.innerHTML=`<div class="mem-title">Membrane ${i}</div>
+        <div class="field"><label>Débit (l/min)</label><input type="number" step="0.5" id="i-m${i}-d${psi}" oninput="calcPEPinit()"></div>
+        <div class="field" style="margin-top:7px"><label>PEP initial</label><div class="comp" id="ci-m${i}-pep${psi}">—</div></div>`;
+      cont.appendChild(div);
     }
+  });
+}
 
-    // Sauvegarde dans le téléphone
-    function sauvegarder() {
-        const donnee = {
-            date: new Date().toLocaleString('fr-CA'),
-            eau: document.getElementById('volEau').value,
-            brix: document.getElementById('brixEau').value,
-            vac: document.getElementById('vacuum').value
-        };
-
-        if(!donnee.eau || !donnee.brix) return alert("Veuillez remplir au moins le volume et le Brix.");
-
-        let historique = JSON.parse(localStorage.getItem('registre_sirop') || "[]");
-        historique.unshift(donnee); // Ajouter au début
-        localStorage.setItem('registre_sirop', JSON.stringify(historique));
-        
-        alert("Enregistré avec succès !");
-        afficherHistorique();
-        
-        // Reset des champs
-        document.getElementById('volEau').value = '';
-        document.getElementById('brixEau').value = '';
+function calcPEPinit() {
+  const nb=parseInt(document.getElementById('i-nb').value)||4;
+  ['150','175'].forEach(psi=>{
+    const d=parseFloat(document.getElementById('i-debit'+psi).value);
+    const t=document.getElementById('i-temp'+psi).value;
+    const fc=getFc(t);
+    const fcEl=document.getElementById('ci-fc'+psi);
+    if(fc){fcEl.textContent=fc.toFixed(3);const l=document.getElementById('ci-fc'+psi+'-lbl');if(l)l.textContent=`(${t}°C)`;}
+    else fcEl.textContent='—';
+    document.getElementById('ci-pep'+psi).textContent=(fc&&d)?(d/fc).toFixed(2):'—';
+    for(let i=1;i<=nb;i++){
+      const dEl=document.getElementById(`i-m${i}-d${psi}`);
+      const pEl=document.getElementById(`ci-m${i}-pep${psi}`);
+      if(dEl&&pEl){const dm=parseFloat(dEl.value);pEl.textContent=(fc&&dm)?(dm/fc).toFixed(2):'—';}
     }
+  });
+  const vmr=parseFloat(document.getElementById('i-vmr').value)||0;
+  const vm=parseFloat(document.getElementById('i-vm').value)||0;
+  document.getElementById('vol-rincage').innerHTML=`
+    <div class="field"><label>Rinçage court VMR (${vmr}L×30)</label><div class="comp">${vmr?(vmr*30).toFixed(0)+' L / '+(vmr*30/4.546).toFixed(0)+' gal':'—'}</div></div>
+    <div class="field"><label>Rinçage long VMR (${vmr}L×50)</label><div class="comp">${vmr?(vmr*50).toFixed(0)+' L / '+(vmr*50/4.546).toFixed(0)+' gal':'—'}</div></div>
+    <div class="field"><label>Rinçage court VM (${vm}L×30)</label><div class="comp">${vm?(vm*30).toFixed(0)+' L / '+(vm*30/4.546).toFixed(0)+' gal':'—'}</div></div>
+    <div class="field"><label>Rinçage long VM (${vm}L×50)</label><div class="comp">${vm?(vm*50).toFixed(0)+' L / '+(vm*50/4.546).toFixed(0)+' gal':'—'}</div></div>`;
+}
 
-    // Affichage de la liste
-    function afficherHistorique() {
-        const liste = document.getElementById('listeHistorique');
-        let historique = JSON.parse(localStorage.getItem('registre_sirop') || "[]");
-        
-        if(historique.length === 0) return;
-        
-        liste.innerHTML = historique.map(item => `
-            <div class="history-item">
-                <strong>${item.date}</strong><br>
-                Eau: ${item.eau} gal | Brix: ${item.brix}% | Vide: -${item.vac} poHg
-            </div>
-        `).join('');
+async function saveInit() {
+  const btn=document.getElementById('btn-save-init');
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Sauvegarde...';
+  const nb=parseInt(document.getElementById('i-nb').value)||4;
+  const t150=document.getElementById('i-temp150').value;
+  const t175=document.getElementById('i-temp175').value;
+  const fc150=getFc(t150),fc175=getFc(t175);
+  const d150=parseFloat(document.getElementById('i-debit150').value)||null;
+  const d175=parseFloat(document.getElementById('i-debit175').value)||null;
+  const m150={},m175={};
+  for(let i=1;i<=nb;i++){
+    const d1=parseFloat(document.getElementById(`i-m${i}-d150`)?.value)||null;
+    const d2=parseFloat(document.getElementById(`i-m${i}-d175`)?.value)||null;
+    m150[i]=(fc150&&d1)?+(d1/fc150).toFixed(4):null;
+    m175[i]=(fc175&&d2)?+(d2/fc175).toFixed(4):null;
+  }
+  cfg={marque:document.getElementById('i-marque').value,modele:document.getElementById('i-modele').value,
+    nbMem:nb,annee:document.getElementById('i-annee').value,
+    vm:parseFloat(document.getElementById('i-vm').value)||168,vmr:parseFloat(document.getElementById('i-vmr').value)||60,
+    datePEP:document.getElementById('i-date-pep').value,
+    pression150:parseFloat(document.getElementById('i-p150').value)||150,debit150:d150,temp150:parseFloat(t150)||9,
+    fc150,pep150:(fc150&&d150)?+(d150/fc150).toFixed(4):null,mems150:m150,
+    pression175:parseFloat(document.getElementById('i-p175').value)||175,debit175:d175,temp175:parseFloat(t175)||9,
+    fc175,pep175:(fc175&&d175)?+(d175/fc175).toFixed(4):null,mems175:m175};
+  try {
+    setStatus('sync','Sauvegarde...');
+    await saveInitToDB();
+    setStatus('ok','Synchronisé ☁️');
+    setSyncTime('Sauvegardé le '+new Date().toLocaleString('fr-CA'));
+    toast('✓ Variables initiales sauvegardées sur Supabase','ok');
+    renderSaisieBanner();renderMemSaisie();
+  } catch(e) {
+    setStatus('err','Erreur sauvegarde');
+    toast('Erreur : '+e.message,'err');
+  }
+  btn.disabled=false;btn.innerHTML='💾 Sauvegarder les variables initiales';
+}
+
+function loadInitForm() {
+  if(!cfg||!cfg.nbMem)return;
+  document.getElementById('i-marque').value=cfg.marque||'';
+  document.getElementById('i-modele').value=cfg.modele||'';
+  document.getElementById('i-nb').value=cfg.nbMem||4;
+  document.getElementById('i-annee').value=cfg.annee||2025;
+  document.getElementById('i-vm').value=cfg.vm||168;
+  document.getElementById('i-vmr').value=cfg.vmr||60;
+  document.getElementById('i-date-pep').value=cfg.datePEP||'';
+  document.getElementById('i-debit150').value=cfg.debit150||'';
+  document.getElementById('i-temp150').value=cfg.temp150||9;
+  document.getElementById('i-p150').value=cfg.pression150||150;
+  document.getElementById('i-debit175').value=cfg.debit175||'';
+  document.getElementById('i-temp175').value=cfg.temp175||9;
+  document.getElementById('i-p175').value=cfg.pression175||175;
+  renderInitMemInputs();
+  setTimeout(()=>{
+    for(let i=1;i<=cfg.nbMem;i++){
+      if(cfg.mems150?.[i]&&cfg.fc150){const el=document.getElementById(`i-m${i}-d150`);if(el)el.value=(cfg.mems150[i]*cfg.fc150).toFixed(1);}
+      if(cfg.mems175?.[i]&&cfg.fc175){const el=document.getElementById(`i-m${i}-d175`);if(el)el.value=(cfg.mems175[i]*cfg.fc175).toFixed(1);}
     }
+    calcPEPinit();
+  },80);
+}
 
-    // Exportation pour Excel
-    function exporterCSV() {
-        let historique = JSON.parse(localStorage.getItem('registre_sirop') || "[]");
-        let csvContent = "data:text/csv;charset=utf-8,Date,Eau,Brix,Vacuum\n" 
-            + historique.map(e => `${e.date},${e.eau},${e.brix},${e.vac}`).join("\n");
-        
-        window.open(encodeURI(csvContent));
-    }
+// ══ SAISIE ════════════════════════════════════════════
+function renderSaisieBanner() {
+  const b=document.getElementById('pep-ref-banner');
+  if(!cfg.pep150&&!cfg.pep175){b.innerHTML=`<div style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--jaune);background:rgba(232,201,58,.1);border:1px solid rgba(232,201,58,.25);border-radius:8px;padding:5px 11px;margin-bottom:10px">⚠️ PEP initial non configuré</div>`;return;}
+  b.innerHTML=`<div class="pep-panel"><h4>⚡ PEP de référence — Saison ${saisonActive}</h4>
+    <div class="pep-row">
+      <div class="pep-item"><div class="pep-label">PEP 150 psi</div><div class="pep-val">${cfg.pep150?cfg.pep150.toFixed(2):'—'}</div><div class="pep-sub">l/min/Fc</div></div>
+      <div class="pep-item"><div class="pep-label">PEP 175 psi</div><div class="pep-val">${cfg.pep175?cfg.pep175.toFixed(2):'—'}</div><div class="pep-sub">l/min/Fc</div></div>
+      <div class="pep-item"><div class="pep-label">Membranes</div><div class="pep-val">${cfg.nbMem||4}</div><div class="pep-sub">${cfg.marque||''}</div></div>
+      <div class="pep-item"><div class="pep-label">Date PEP</div><div class="pep-val" style="font-size:13px">${cfg.datePEP||'—'}</div></div>
+    </div></div>`;
+}
 
-    // Charger l'historique au démarrage
-    afficherHistorique();
+function renderMemSaisie() {
+  const nb=nbMem(),cont=document.getElementById('mem-saisie-container');
+  cont.innerHTML='';
+  for(let i=1;i<=nb;i++){
+    const div=document.createElement('div');div.style.marginBottom='10px';
+    div.innerHTML=`<p style="font-size:11px;font-weight:700;color:var(--amber2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Membrane ${i}</p>
+      <div class="row3">
+        <div class="field"><label>Débit 150 psi</label><input type="number" step="0.5" id="sm${i}-d150" oninput="calcSaisie()"></div>
+        <div class="field"><label>T° 150 psi (°C)</label><input type="number" step="1" id="sm${i}-t150" oninput="calcSaisie()"></div>
+        <div class="field"><label>Efficacité 150</label><div class="comp" id="smc${i}-eff150">—</div></div>
+      </div>
+      <div class="row3">
+        <div class="field"><label>Débit 175 psi</label><input type="number" step="0.5" id="sm${i}-d175" oninput="calcSaisie()"></div>
+        <div class="field"><label>T° 175 psi (°C)</label><input type="number" step="1" id="sm${i}-t175" oninput="calcSaisie()"></div>
+        <div class="field"><label>Efficacité 175</label><div class="comp" id="smc${i}-eff175">—</div></div>
+      </div>`;
+    cont.appendChild(div);
+  }
+}
+
+function calcSaisie() {
+  const nb=nbMem();
+  const gd150=parseFloat(document.getElementById('s-g-debit150').value);
+  const gt150=document.getElementById('s-g-temp150').value;
+  const gp150=calcPEP(gd150,gt150),ge150=(gp150&&cfg.pep150)?(gp150/cfg.pep150*100):null;
+  setComp('sc-g-pep150',gp150?gp150.toFixed(2):'—',effCls(ge150));
+  setComp('sc-g-eff150',ge150?ge150.toFixed(1)+'%':'—',effCls(ge150));
+  const gd175=parseFloat(document.getElementById('s-g-debit175').value);
+  const gt175=document.getElementById('s-g-temp175').value;
+  const gp175=calcPEP(gd175,gt175),ge175=(gp175&&cfg.pep175)?(gp175/cfg.pep175*100):null;
+  setComp('sc-g-eff175',ge175?ge175.toFixed(1)+'%':'—',effCls(ge175));
+  for(let i=1;i<=nb;i++){['150','175'].forEach(p=>{
+    const d=parseFloat(document.getElementById(`sm${i}-d${p}`)?.value);
+    const t=document.getElementById(`sm${i}-t${p}`)?.value;
+    const pep=calcPEP(d,t);
+    const ref=cfg[`mems${p}`]?.[i]||cfg[`pep${p}`];
+    const eff=(pep&&ref)?(pep/ref*100):null;
+    setComp(`smc${i}-eff${p}`,eff?eff.toFixed(1)+'%':'—',effCls(eff));
+  });}
+}
+
+function setComp(id,val,cls=''){const el=document.getElementById(id);if(!el)return;el.textContent=val;el.className='comp '+cls;}
+
+async function saveEntry() {
+  const date=document.getElementById('s-date').value;
+  if(!date){alert('Veuillez entrer une date.');return;}
+  const btn=document.getElementById('btn-save-entry');
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Enregistrement...';
+  const nb=nbMem();
+  const gd150=parseFloat(document.getElementById('s-g-debit150').value)||null;
+  const gt150=parseFloat(document.getElementById('s-g-temp150').value)||null;
+  const gp150=gd150&&gt150?calcPEP(gd150,gt150):null;
+  const ge150=(gp150&&cfg.pep150)?+(gp150/cfg.pep150*100).toFixed(2):null;
+  const gd175=parseFloat(document.getElementById('s-g-debit175').value)||null;
+  const gt175=parseFloat(document.getElementById('s-g-temp175').value)||null;
+  const gp175=gd175&&gt175?calcPEP(gd175,gt175):null;
+  const ge175=(gp175&&cfg.pep175)?+(gp175/cfg.pep175*100).toFixed(2):null;
+  const mems={};
+  for(let i=1;i<=nb;i++){
+    const d150=parseFloat(document.getElementById(`sm${i}-d150`)?.value)||null;
+    const t150=parseFloat(document.getElementById(`sm${i}-t150`)?.value)||null;
+    const d175=parseFloat(document.getElementById(`sm${i}-d175`)?.value)||null;
+    const t175=parseFloat(document.getElementById(`sm${i}-t175`)?.value)||null;
+    const p150=d150&&t150?calcPEP(d150,t150):null;
+    const p175=d175&&t175?calcPEP(d175,t175):null;
+    const r150=cfg.mems150?.[i]||cfg.pep150,r175=cfg.mems175?.[i]||cfg.pep175;
+    mems[i]={d150,t150,pep150:p150?+p150.toFixed(3):null,eff150:(p150&&r150)?+(p150/r150*100).toFixed(2):null,
+              d175,t175,pep175:p175?+p175.toFixed(3):null,eff175:(p175&&r175)?+(p175/r175*100).toFixed(2):null};
+  }
+  const entry={date,heures:parseFloat(document.getElementById('s-heures').value)||null,op:document.getElementById('s-op').value,
+    global:{d150:gd150,t150:gt150,pep150:gp150?+gp150.toFixed(3):null,eff150:ge150,d175:gd175,t175:gt175,pep175:gp175?+gp175.toFixed(3):null,eff175:ge175},
+    mems,lavage:document.getElementById('s-lavage').value,lavConc:document.getElementById('s-lav-conc').value,
+    lavTemp:parseFloat(document.getElementById('s-lav-temp').value)||null,lavDuree:parseFloat(document.getElementById('s-lav-duree').value)||null,
+    lavVol:parseFloat(document.getElementById('s-lav-vol').value)||null,notes:document.getElementById('s-notes').value.trim()};
+  try {
+    setStatus('sync','Enregistrement...');
+    const newId = await saveEntreeToDB(entry);
+    entry.id = newId;
+    data.unshift(entry);
+    setStatus('ok','Synchronisé ☁️');
+    setSyncTime('Dernière entrée : '+new Date().toLocaleString('fr-CA'));
+    toast('✓ Entrée enregistrée sur Supabase !','ok');
+    resetSaisie();
+  } catch(e) {
+    setStatus('err','Erreur');
+    toast('Erreur : '+e.message,'err');
+  }
+  btn.disabled=false;btn.innerHTML='💾 Enregistrer cette entrée';
+}
+
+function resetSaisie(){
+  ['s-heures','s-g-debit150','s-g-temp150','s-g-debit175','s-g-temp175','s-lav-conc','s-lav-temp','s-lav-duree','s-lav-vol','s-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('s-op').value='';document.getElementById('s-lavage').value='';
+  const nb=nbMem();
+  for(let i=1;i<=nb;i++)['150','175'].forEach(p=>{const d=document.getElementById(`sm${i}-d${p}`);if(d)d.value='';const t=document.getElementById(`sm${i}-t${p}`);if(t)t.value='';});
+  ['sc-g-pep150','sc-g-eff150','sc-g-eff175'].forEach(id=>setComp(id,'—',''));
+  for(let i=1;i<=nbMem();i++)['150','175'].forEach(p=>setComp(`smc${i}-eff${p}`,'—',''));
+}
+
+// ══ HISTORIQUE ════════════════════════════════════════
+function renderHist(){
+  const cont=document.getElementById('hist-list');
+  if(!data.length){cont.innerHTML=`<div style="text-align:center;padding:40px;color:var(--gris)"><div style="font-size:44px">💧</div><p style="margin-top:12px;font-size:13px">Aucune entrée pour la saison ${saisonActive}.</p></div>`;return;}
+  cont.innerHTML=data.map(e=>{
+    const ds=e.date?new Date(e.date+'T12:00:00').toLocaleDateString('fr-CA',{weekday:'short',day:'numeric',month:'short'}):'—';
+    const g=e.global||{};
+    const lv=e.lavage?`<span style="background:rgba(200,125,47,.15);color:var(--amber2);font-size:11px;padding:2px 8px;border-radius:10px;margin-left:6px">🧹 ${e.lavage}</span>`:'';
+    const nb=Object.keys(e.mems||{}).length;
+    const mh=nb?`<div class="hmems">${Object.entries(e.mems).map(([k,m])=>`<div class="hmem"><div class="hmem-l">Mem. ${k}</div><div class="hmem-v ${memEffCls(m.eff150)}">${m.eff150!==null?m.eff150.toFixed(0)+'%':'—'}</div></div>`).join('')}</div>`:'';
+    return `<div class="hcard">
+      <div class="hcard-top"><div><div class="hdate">${ds} ${lv}</div><div class="hop">${e.op||''} ${e.heures?'• '+e.heures+'h':''}</div></div>
+      <button class="hdel" onclick="delEntry(${e.id})">🗑</button></div>
+      <div class="hstats">
+        <div class="hstat"><div class="hstat-l">Débit 150psi</div><div class="hstat-v">${g.d150??'—'}<span class="hstat-u"> l/min</span></div></div>
+        <div class="hstat"><div class="hstat-l">PEP 150psi</div><div class="hstat-v">${g.pep150??'—'}</div></div>
+        <div class="hstat"><div class="hstat-l">Efficacité 150</div><div class="hstat-v ${effCls(g.eff150)}">${g.eff150!==null?g.eff150.toFixed(1)+'%':'—'}</div></div>
+        <div class="hstat"><div class="hstat-l">Débit 175psi</div><div class="hstat-v">${g.d175??'—'}<span class="hstat-u"> l/min</span></div></div>
+        <div class="hstat"><div class="hstat-l">PEP 175psi</div><div class="hstat-v">${g.pep175??'—'}</div></div>
+        <div class="hstat"><div class="hstat-l">Efficacité 175</div><div class="hstat-v ${effCls(g.eff175)}">${g.eff175!==null?g.eff175.toFixed(1)+'%':'—'}</div></div>
+      </div>${mh}${e.notes?`<div class="hnote">📝 ${e.notes}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+async function delEntry(id){
+  if(!confirm('Supprimer cette entrée ?'))return;
+  try{
+    setStatus('sync','Suppression...');
+    await deleteEntreeFromDB(id);
+    data=data.filter(e=>e.id!==id);
+    setStatus('ok','Synchronisé ☁️');
+    renderHist();renderBilan();
+    toast('Entrée supprimée','info');
+  }catch(e){setStatus('err','Erreur');toast('Erreur : '+e.message,'err');}
+}
+
+// ══ BILAN ═════════════════════════════════════════════
+function renderBilan(){
+  const dates=data.map(e=>e.date).filter(Boolean).sort();
+  document.getElementById('bilan-period').textContent=dates.length?`Saison ${saisonActive} — ${dates.length} entrées — du ${dates[0]} au ${dates[dates.length-1]}`:`Saison ${saisonActive}`;
+  const effs150=data.map(e=>e.global?.eff150).filter(v=>v!=null);
+  const effs175=data.map(e=>e.global?.eff175).filter(v=>v!=null);
+  const avg=arr=>arr.length?(arr.reduce((a,b)=>a+b,0)/arr.length).toFixed(1):'—';
+  const minV=arr=>arr.length?Math.min(...arr).toFixed(1):'—';
+  document.getElementById('bilan-stats').innerHTML=[
+    {lbl:'Entrées enregistrées',val:data.length,unit:''},
+    {lbl:'Efficacité moy. 150psi',val:avg(effs150),unit:'%'},
+    {lbl:'Efficacité moy. 175psi',val:avg(effs175),unit:'%'},
+    {lbl:'Efficacité min. 150psi',val:minV(effs150),unit:'%'},
+    {lbl:'Lavages effectués',val:data.filter(e=>e.lavage).length,unit:''},
+    {lbl:'PEP initial 150psi',val:cfg.pep150?cfg.pep150.toFixed(2):'—',unit:''},
+  ].map(s=>`<div class="sc"><div class="sc-big">${s.val}<span style="font-size:15px;color:var(--amber)">${s.unit}</span></div><div class="sc-lbl">${s.lbl}</div></div>`).join('');
+  const nb=nbMem();
+  let h=`<div class="card"><h3>🔬 Efficacité par membrane (moyenne saison ${saisonActive})</h3><div class="mem-grid">`;
+  for(let i=1;i<=nb;i++){
+    const em=data.map(e=>e.mems?.[i]?.eff150).filter(v=>v!=null);
+    const am=em.length?(em.reduce((a,b)=>a+b,0)/em.length):null;
+    const pi=cfg.mems150?.[i]?cfg.mems150[i].toFixed(2):'—';
+    h+=`<div class="mem-card"><div class="mem-title">Membrane ${i} <span class="mem-eff ${memEffCls(am)}">${am!==null?am.toFixed(1)+'%':'—'}</span></div>
+      <div style="font-size:11px;color:var(--gris)">PEP init: ${pi}</div>
+      ${am!==null?`<div class="eff-bar"><div class="eff-fill" style="width:${Math.min(100,am)}%;background:${am>=95?'#6ec96e':am>=80?'var(--jaune)':'#e05555'}"></div></div>`:''}</div>`;
+  }
+  h+='</div></div>';
+  document.getElementById('bilan-mems').innerHTML=h;
+}
+
+// ══ SAISON ════════════════════════════════════════════
+async function changeSaison(val){
+  saisonActive=parseInt(val);configId=null;cfg={};data=[];
+  setStatus('sync','Chargement saison '+saisonActive+'...');
+  try{
+    await loadConfig();await loadEntrees();
+    setStatus('ok','Saison '+saisonActive+' chargée ☁️');
+    loadInitForm();renderHist();renderBilan();renderSaisieBanner();
+  }catch(e){setStatus('err','Erreur');toast('Erreur : '+e.message,'err');}
+}
+
+// ══ EXPORT ════════════════════════════════════════════
+function exportXLSX(){
+  if(!data.length){alert('Aucune donnée.');return;}
+  const nb=nbMem();
+  const rows=data.map(e=>{
+    const g=e.global||{};
+    const row={'Date':e.date,'Opération':e.op,'Heures':e.heures,
+      'Débit Global 150psi':g.d150,'T° 150':g.t150,'PEP 150':g.pep150,'Eff. 150 (%)':g.eff150,
+      'Débit Global 175psi':g.d175,'T° 175':g.t175,'PEP 175':g.pep175,'Eff. 175 (%)':g.eff175};
+    for(let i=1;i<=nb;i++){const m=e.mems?.[i]||{};row[`Mem${i} D150`]=m.d150;row[`Mem${i} PEP150`]=m.pep150;row[`Mem${i} Eff150%`]=m.eff150;row[`Mem${i} D175`]=m.d175;row[`Mem${i} PEP175`]=m.pep175;row[`Mem${i} Eff175%`]=m.eff175;}
+    row['Lavage']=e.lavage;row['Conc.']=e.lavConc;row['T° lav.']=e.lavTemp;row['Durée (min)']=e.lavDuree;row['Vol. (gal)']=e.lavVol;row['Notes']=e.notes;
+    return row;
+  });
+  const ws=XLSX.utils.json_to_sheet(rows),wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Osmose PEP '+saisonActive);
+  XLSX.writeFile(wb,`registre_osmose_${saisonActive}.xlsx`);
+}
+
+function exportCSV(){
+  if(!data.length){alert('Aucune donnée.');return;}
+  const nb=nbMem();
+  const h=['Date','Opération','Heures','D150G','T150','PEP150G','Eff150G','D175G','T175','PEP175G','Eff175G'];
+  for(let i=1;i<=nb;i++)h.push(`M${i}D150`,`M${i}PEP150`,`M${i}Eff150`,`M${i}D175`,`M${i}PEP175`,`M${i}Eff175`);
+  h.push('Lavage','Conc','TLav','Duree','VolGal','Notes');
+  const rows=data.map(e=>{const g=e.global||{};const r=[e.date,e.op,e.heures,g.d150,g.t150,g.pep150,g.eff150,g.d175,g.t175,g.pep175,g.eff175];for(let i=1;i<=nb;i++){const m=e.mems?.[i]||{};r.push(m.d150,m.pep150,m.eff150,m.d175,m.pep175,m.eff175);}r.push(e.lavage,e.lavConc,e.lavTemp,e.lavDuree,e.lavVol,e.notes);return r.map(v=>v!=null?`"${v}"`:'').join(',');});
+  const csv='\uFEFF'+[h.join(','),...rows].join('\n');
+  const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})),download:`osmose_${saisonActive}.csv`});a.click();
+}
+
+// ══ TABS ══════════════════════════════════════════════
+function goTab(name){
+  ['init','saisie','hist','bilan'].forEach((t,i)=>{
+    document.getElementById('tab-'+t).classList.toggle('hidden',t!==name);
+    document.querySelectorAll('.tab')[i].classList.toggle('on',t===name);
+  });
+  if(name==='saisie'){renderSaisieBanner();renderMemSaisie();}
+  if(name==='hist')renderHist();
+  if(name==='bilan')renderBilan();
+}
+
+// ══ TOAST ═════════════════════════════════════════════
+function toast(msg,type='ok'){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className=`toast t-${type} show`;
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ══ BOOT ══════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('s-date').value=new Date().toISOString().split('T')[0];
+  saisonActive=new Date().getFullYear();
+  document.getElementById('saison-select').value=saisonActive;
+  renderInitMemInputs();
+  calcPEPinit();
+  document.getElementById('i-nb').addEventListener('change',()=>{renderInitMemInputs();calcPEPinit();});
+  initApp();
+});
 </script>
-
 </body>
 </html>
